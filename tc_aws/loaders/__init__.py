@@ -19,7 +19,13 @@ def _get_bucket_and_key(context, url):
     url = urllib2.unquote(url).lstrip('/')
 
     bucket = _get_bucket(url)
-    if not _validate_bucket(context, bucket):
+
+    # if not a valid bucket, use default bucket
+    if _validate_bucket(context, bucket):
+        first_slash_index = url.find('/')
+        bucket = url[:first_slash_index]
+        key = url[first_slash_index + 1:]
+    else:
         bucket = context.config.get('TC_AWS_LOADER_BUCKET')
 
     key = _get_key(url, context)
