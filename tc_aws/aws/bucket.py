@@ -4,7 +4,7 @@
 # Use of this source code is governed by the MIT license that can be
 # found in the LICENSE file.
 
-import .session as session_handler
+from .session import get_session
 from tornado_botocore import Botocore
 from tornado.concurrent import run_on_executor
 from thumbor.utils import logger
@@ -40,7 +40,7 @@ class Bucket(object):
         :param string path: Path or 'key' to retrieve AWS object
         :param callable callback: Callback function for once the retrieval is done
         """
-        my_session = session_handler.get_session(self._endpoint is not None)
+        my_session = get_session(self._endpoint is not None)
         session = Botocore(
             service="s3",
             region_name=self._region,
@@ -63,7 +63,7 @@ class Bucket(object):
         :param int expiry: URL validity time
         :param callable callback: Called function once done
         """
-        session = session_handler.get_session(self._endpoint is not None)
+        session = get_session(self._endpoint is not None)
         client = session.create_client(
             "s3", region_name=self._region, endpoint_url=self._endpoint
         )
@@ -115,7 +115,7 @@ class Bucket(object):
         if encrypt_key:
             args["ServerSideEncryption"] = "AES256"
 
-        my_session = session_handler.get_session(self._endpoint is not None)
+        my_session = get_session(self._endpoint is not None)
         session = Botocore(
             service="s3",
             region_name=self._region,
@@ -133,7 +133,7 @@ class Bucket(object):
         :param string path: Path or 'key' to delete
         :param callable callback: Called function once done
         """
-        my_session = session_handler.get_session(self._endpoint is not None)
+        my_session = get_session(self._endpoint is not None)
         session = Botocore(
             service="s3",
             region_name=self._region,
