@@ -12,7 +12,7 @@ from . import *
 from ..aws.bucket import Bucket
 
 
-@run_on_executor(executor="_thread_pool")
+@run_on_executor
 def _generate_presigned_url(context, bucket, key, callback):
     """
     Generates presigned URL
@@ -28,7 +28,7 @@ def _generate_presigned_url(context, bucket, key, callback):
     ).get_url(key, callback=callback)
 
 
-@run_on_executor(executor="_thread_pool")
+@run_on_executor
 def load(context, url, callback):
     """
     Loads image
@@ -37,9 +37,7 @@ def load(context, url, callback):
     :param callable callback: Callback method once done
     """
     if _use_http_loader(context, url):
-        http_loader.load_sync(
-            context, url, callback, normalize_url_func=http_loader._normalize_url
-        )
+        http_loader.load_sync(context, url, callback, normalize_url_func=http_loader._normalize_url)
     else:
         bucket, key = _get_bucket_and_key(context, url)
 
@@ -49,9 +47,7 @@ def load(context, url, callback):
                 def noop(url):
                     return url
 
-                http_loader.load_sync(
-                    context, generated_url, callback, normalize_url_func=noop
-                )
+                http_loader.load_sync(context, generated_url, callback, normalize_url_func=noop)
 
             _generate_presigned_url(context, bucket, key, on_url_generated)
         else:

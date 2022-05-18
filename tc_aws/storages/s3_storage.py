@@ -23,11 +23,9 @@ class Storage(AwsStorage, BaseStorage):
         """
         BaseStorage.__init__(self, context)
         AwsStorage.__init__(self, context, "TC_AWS_STORAGE")
-        self.storage_expiration_seconds = context.config.get(
-            "STORAGE_EXPIRATION_SECONDS", 3600
-        )
+        self.storage_expiration_seconds = context.config.get("STORAGE_EXPIRATION_SECONDS", 3600)
 
-    @run_on_executor(executor="_thread_pool")
+    @run_on_executor
     def put(self, path, bytes, callback=None):
         """
         Stores image
@@ -45,7 +43,7 @@ class Storage(AwsStorage, BaseStorage):
 
         self.set(bytes, self._normalize_path(path), callback=once_written)
 
-    @run_on_executor(executor="_thread_pool")
+    @run_on_executor
     def get(self, path, callback):
         """
         Gets data at path
