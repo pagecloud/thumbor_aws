@@ -4,9 +4,16 @@
 # Use of this source code is governed by the MIT license that can be
 # found in the LICENSE file.
 
-__all__ = ['_get_bucket_and_key', '_get_bucket', '_get_key', '_validate_bucket', '_use_http_loader']
+__all__ = [
+    "_get_bucket_and_key",
+    "_get_bucket",
+    "_get_key",
+    "_validate_bucket",
+    "_use_http_loader",
+]
 
-import urllib2
+import urllib
+
 
 def _get_bucket_and_key(context, url):
     """
@@ -16,22 +23,23 @@ def _get_bucket_and_key(context, url):
     :return: A tuple with the bucket and the key detected
     :rtype: tuple
     """
-    url = urllib2.unquote(url).lstrip('/')
+    url = urllib.unquote(url).lstrip("/")
 
     bucket = _get_bucket(url)
 
     # if not a valid bucket, use default bucket
     if _validate_bucket(context, bucket):
-        first_slash_index = url.find('/')
+        first_slash_index = url.find("/")
         bucket = url[:first_slash_index]
-        key = url[first_slash_index + 1:]
+        key = url[first_slash_index + 1 :]
     else:
-        bucket = context.config.get('TC_AWS_LOADER_BUCKET')
+        bucket = context.config.get("TC_AWS_LOADER_BUCKET")
         key = url
 
     key = _get_key(key, context)
 
     return bucket, key
+
 
 def _get_bucket(url):
     """
@@ -40,9 +48,10 @@ def _get_bucket(url):
     :return: bucket name
     :rtype: string
     """
-    first_slash_index = url.find('/')
+    first_slash_index = url.find("/")
 
     return url[:first_slash_index]
+
 
 def _get_key(path, context):
     """
@@ -52,8 +61,9 @@ def _get_key(path, context):
     :return: Extracted key
     :rtype: string
     """
-    root_path = context.config.get('TC_AWS_LOADER_ROOT_PATH')
-    return '/'.join([root_path, path]) if root_path is not '' else path
+    root_path = context.config.get("TC_AWS_LOADER_ROOT_PATH")
+    return "/".join([root_path, path]) if root_path is not "" else path
+
 
 def _validate_bucket(context, bucket):
     """
@@ -63,8 +73,9 @@ def _validate_bucket(context, bucket):
     :return: Whether bucket is allowed or not
     :rtype: bool
     """
-    allowed_buckets = context.config.get('TC_AWS_ALLOWED_BUCKETS', default=None)
+    allowed_buckets = context.config.get("TC_AWS_ALLOWED_BUCKETS", default=None)
     return bucket in allowed_buckets
+
 
 def _use_http_loader(context, url):
     """
@@ -74,5 +85,5 @@ def _use_http_loader(context, url):
     :return: Whether we should use HTTP Loader or not
     :rtype: bool
     """
-    enable_http_loader = context.config.get('TC_AWS_ENABLE_HTTP_LOADER', default=False)
-    return enable_http_loader and url.startswith('http')
+    enable_http_loader = context.config.get("TC_AWS_ENABLE_HTTP_LOADER", default=False)
+    return enable_http_loader and url.startswith("http")
