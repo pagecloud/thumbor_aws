@@ -55,7 +55,6 @@ class AwsStorage:
         self.config_prefix = config_prefix
         self.context = context
 
-    @run_on_executor(executor="_thread_pool")
     def get(self, path, callback):
         """
         Gets data at path
@@ -66,7 +65,6 @@ class AwsStorage:
 
         self.storage.get(file_abspath, callback=callback)
 
-    @run_on_executor(executor="_thread_pool")
     def set(self, bytes, abspath, callback=None):
         """
         Stores data at given path
@@ -101,7 +99,6 @@ class AwsStorage:
         yield self.storage.delete(path)
         return
 
-    @run_on_executor(executor="_thread_pool")
     def exists(self, path, callback):
         """
         Tells if data exists at given path
@@ -139,7 +136,6 @@ class AwsStorage:
             # If our key is bad just say we're expired
             return True
 
-    @run_on_executor(executor="_thread_pool")
     def last_updated(self, callback):
         """
         Tells when the image has last been updated
@@ -162,7 +158,6 @@ class AwsStorage:
 
         self.storage.get(file_abspath, callback=on_file_fetched)
 
-    @run_on_executor(executor="_thread_pool")
     def get_crypto(self, path, callback):
         """
         Retrieves crypto data at path
@@ -207,7 +202,6 @@ class AwsStorage:
 
         return crypto_path
 
-    @run_on_executor(executor="_thread_pool")
     def get_detector_data(self, path, callback):
         """
         Retrieves detector data from storage
@@ -270,8 +264,7 @@ class AwsStorage:
         """
         if self._get_error(response):
             logger.warn(
-                "[STORAGE] error occured while storing data: %s"
-                % self._get_error(response)
+                "[STORAGE] error occured while storing data: %s" % self._get_error(response)
             )
 
     def _get_config(self, config_key, default=None):

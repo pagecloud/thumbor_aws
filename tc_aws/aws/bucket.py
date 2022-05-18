@@ -6,7 +6,6 @@
 
 from .session import get_session
 from tornado_botocore import Botocore
-from tornado.concurrent import run_on_executor
 from thumbor.utils import logger
 from thumbor.engines import BaseEngine
 
@@ -33,7 +32,6 @@ class Bucket(object):
         self._region = region
         self._endpoint = endpoint
 
-    @run_on_executor(executor="_thread_pool")
     def get(self, path, callback=None):
         """
         Returns object at given path
@@ -54,7 +52,6 @@ class Bucket(object):
             Key=self._clean_key(path),
         )
 
-    @run_on_executor(executor="_thread_pool")
     def get_url(self, path, method="GET", expiry=3600, callback=None):
         """
         Generates the presigned url for given key & methods
@@ -64,9 +61,7 @@ class Bucket(object):
         :param callable callback: Called function once done
         """
         session = get_session(self._endpoint is not None)
-        client = session.create_client(
-            "s3", region_name=self._region, endpoint_url=self._endpoint
-        )
+        client = session.create_client("s3", region_name=self._region, endpoint_url=self._endpoint)
 
         url = client.generate_presigned_url(
             ClientMethod="get_object",
@@ -80,7 +75,6 @@ class Bucket(object):
 
         callback(url)
 
-    @run_on_executor(executor="_thread_pool")
     def put(
         self,
         path,
@@ -126,7 +120,6 @@ class Bucket(object):
 
         session.call(**args)
 
-    @run_on_executor(executor="_thread_pool")
     def delete(self, path, callback=None):
         """
         Deletes key at given path
