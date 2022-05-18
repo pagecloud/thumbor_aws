@@ -4,7 +4,7 @@
 # Use of this source code is governed by the MIT license that can be
 # found in the LICENSE file.
 
-from tornado.concurrent import run_on_executor
+from tc_aws.concurrent import return_future
 
 from thumbor.storages import BaseStorage
 
@@ -27,7 +27,7 @@ class Storage(AwsStorage, BaseStorage):
             "STORAGE_EXPIRATION_SECONDS", 3600
         )
 
-    @run_on_executor(executor="_thread_pool")
+    @return_future
     def put(self, path, bytes, callback=None):
         """
         Stores image
@@ -45,7 +45,7 @@ class Storage(AwsStorage, BaseStorage):
 
         self.set(bytes, self._normalize_path(path), callback=once_written)
 
-    @run_on_executor(executor="_thread_pool")
+    @return_future
     def get(self, path, callback):
         """
         Gets data at path

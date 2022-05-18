@@ -6,7 +6,7 @@
 
 from thumbor.utils import logger
 from thumbor.loaders import LoaderResult
-from tornado.concurrent import run_on_executor
+from tornado.concurrent import return_future
 
 import thumbor.loaders.http_loader as http_loader
 
@@ -14,7 +14,7 @@ from . import *
 from ..aws.bucket import Bucket
 
 
-@run_on_executor(executor="_thread_pool")
+@return_future
 def load(context, url, callback):
     """
     Loads image
@@ -23,9 +23,7 @@ def load(context, url, callback):
     :param callable callback: Callback method once done
     """
     if _use_http_loader(context, url):
-        http_loader.load_sync(
-            context, url, callback, normalize_url_func=http_loader._normalize_url
-        )
+        http_loader.load_sync(context, url, callback, normalize_url_func=http_loader._normalize_url)
         return
 
     bucket, key = _get_bucket_and_key(context, url)
@@ -80,11 +78,7 @@ class HandleDataFunc(object):
         """Callback method for getObject from s3"""
         if not file_key or "Error" in file_key or "Body" not in file_key:
 
-            logger.error(
-                "ERROR retrieving image from S3 {0}: {1}".format(
-                    self.key, str(file_key)
-                )
-            )
+            logger.error("ERROR retrieving image from S3 {0}: {1}".format(self.key, str(file_key)))
 
             # If we got here, there was a failure.
             # We will return 404 if S3 returned a 404, otherwise 502.
