@@ -28,6 +28,7 @@ class Storage(AwsStorage, BaseStorage):
             "RESULT_STORAGE_EXPIRATION_SECONDS", 3600
         )
 
+    @run_on_executor(executor="_thread_pool")
     def put(self, bytes, callback=None):
         """
         Stores image
@@ -44,6 +45,7 @@ class Storage(AwsStorage, BaseStorage):
 
         super(Storage, self).set(bytes, path, callback=callback)
 
+    @run_on_executor(executor="_thread_pool")
     def get(self, path=None, callback=None):
         """
         Retrieves data
