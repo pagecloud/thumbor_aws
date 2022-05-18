@@ -4,7 +4,7 @@
 # Use of this source code is governed by the MIT license that can be
 # found in the LICENSE file.
 
-import session as session_handler
+import .session as session_handler
 from tornado_botocore import Botocore
 from tornado.concurrent import run_on_executor
 from thumbor.utils import logger
