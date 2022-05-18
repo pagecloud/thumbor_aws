@@ -1,29 +1,33 @@
-#coding: utf-8
+# coding: utf-8
 
 # Copyright (c) 2015-2016, thumbor-community
 # Use of this source code is governed by the MIT license that can be
 # found in the LICENSE file.
 
-from tornado.concurrent import return_future
+from tornado.concurrent import run_on_executor
 
 from thumbor.storages import BaseStorage
 
 from ..aws.storage import AwsStorage
 
+
 class Storage(AwsStorage, BaseStorage):
     """
     S3 Storage
     """
+
     def __init__(self, context):
         """
         Constructor
         :param Context context: Thumbor's context
         """
         BaseStorage.__init__(self, context)
-        AwsStorage.__init__(self, context, 'TC_AWS_STORAGE')
-        self.storage_expiration_seconds = context.config.get('STORAGE_EXPIRATION_SECONDS', 3600)
+        AwsStorage.__init__(self, context, "TC_AWS_STORAGE")
+        self.storage_expiration_seconds = context.config.get(
+            "STORAGE_EXPIRATION_SECONDS", 3600
+        )
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def put(self, path, bytes, callback=None):
         """
         Stores image
@@ -32,6 +36,7 @@ class Storage(AwsStorage, BaseStorage):
         :param callable callback:
         :rtype: string
         """
+
         def once_written(response):
             if response is None or self._get_error(response) is not None:
                 callback(None)
@@ -40,7 +45,7 @@ class Storage(AwsStorage, BaseStorage):
 
         self.set(bytes, self._normalize_path(path), callback=once_written)
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def get(self, path, callback):
         """
         Gets data at path
@@ -52,10 +57,9 @@ class Storage(AwsStorage, BaseStorage):
             if key is None or self._get_error(key) is not None:
                 callback(None)
             else:
-                callback(key['Body'].read())
+                callback(key["Body"].read())
 
         super(Storage, self).get(path, callback=parse_body)
-
 
     def resolve_original_photo_path(self, filename):
         """
