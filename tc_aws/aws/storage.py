@@ -9,15 +9,17 @@ from os.path import join, splitext
 from datetime import datetime
 from dateutil.tz import tzutc
 
-from tornado.concurrent import return_future
+from tornado.concurrent import run_on_executor
 from thumbor.utils import logger
 
 from .bucket import Bucket
 
-class AwsStorage():
+
+class AwsStorage:
     """
     Base storage class
     """
+
     @property
     def is_auto_webp(self):
         """
@@ -25,7 +27,11 @@ class AwsStorage():
         :return: Use WebP?
         :rtype: bool
         """
-        return self.context.config.AUTO_WEBP and hasattr(self.context, 'request') and self.context.request.accepts_webp
+        return (
+            self.context.config.AUTO_WEBP
+            and hasattr(self.context, "request")
+            and self.context.request.accepts_webp
+        )
 
     @property
     def storage(self):
@@ -34,8 +40,11 @@ class AwsStorage():
         :return: The bucket
         :rtype: Bucket
         """
-        return Bucket(self._get_config('BUCKET'), self.context.config.get('TC_AWS_REGION'),
-                      self.context.config.get('TC_AWS_ENDPOINT'))
+        return Bucket(
+            self._get_config("BUCKET"),
+            self.context.config.get("TC_AWS_REGION"),
+            self.context.config.get("TC_AWS_ENDPOINT"),
+        )
 
     def __init__(self, context, config_prefix):
         """
@@ -46,7 +55,7 @@ class AwsStorage():
         self.config_prefix = config_prefix
         self.context = context
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def get(self, path, callback):
         """
         Gets data at path
@@ -57,7 +66,7 @@ class AwsStorage():
 
         self.storage.get(file_abspath, callback=callback)
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def set(self, bytes, abspath, callback=None):
         """
         Stores data at given path
@@ -68,15 +77,17 @@ class AwsStorage():
         """
         metadata = {}
 
-        if self.config_prefix is 'TC_AWS_RESULT_STORAGE' and self.context.config.get('TC_AWS_STORE_METADATA'):
+        if self.config_prefix is "TC_AWS_RESULT_STORAGE" and self.context.config.get(
+            "TC_AWS_STORE_METADATA"
+        ):
             metadata = dict(self.context.headers)
 
         self.storage.put(
             abspath,
             bytes,
             metadata=metadata,
-            reduced_redundancy=self.context.config.get('TC_AWS_STORAGE_RRS', False),
-            encrypt_key=self.context.config.get('TC_AWS_STORAGE_SSE', False),
+            reduced_redundancy=self.context.config.get("TC_AWS_STORAGE_RRS", False),
+            encrypt_key=self.context.config.get("TC_AWS_STORAGE_SSE", False),
             callback=callback,
         )
 
@@ -90,7 +101,7 @@ class AwsStorage():
         yield self.storage.delete(path)
         return
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def exists(self, path, callback):
         """
         Tells if data exists at given path
@@ -114,21 +125,21 @@ class AwsStorage():
         :return: Whether it is expired or not
         :rtype: bool
         """
-        if key and self._get_error(key) is None and 'LastModified' in key:
+        if key and self._get_error(key) is None and "LastModified" in key:
             expire_in_seconds = self.storage_expiration_seconds
 
             # Never expire
             if expire_in_seconds is None or expire_in_seconds == 0:
                 return False
 
-            timediff = datetime.now(tzutc()) - key['LastModified']
+            timediff = datetime.now(tzutc()) - key["LastModified"]
 
             return timediff.seconds > expire_in_seconds
         else:
-            #If our key is bad just say we're expired
+            # If our key is bad just say we're expired
             return True
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def last_updated(self, callback):
         """
         Tells when the image has last been updated
@@ -138,15 +149,20 @@ class AwsStorage():
         file_abspath = self._normalize_path(path)
 
         def on_file_fetched(file):
-            if not file or self._get_error(file) or self.is_expired(file) or 'LastModified' not in file:
+            if (
+                not file
+                or self._get_error(file)
+                or self.is_expired(file)
+                or "LastModified" not in file
+            ):
                 logger.warn("[AwsStorage] s3 key not found at %s" % file_abspath)
                 callback(None)
             else:
-                callback(file['LastModified'])
+                callback(file["LastModified"])
 
         self.storage.get(file_abspath, callback=on_file_fetched)
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def get_crypto(self, path, callback):
         """
         Retrieves crypto data at path
@@ -157,11 +173,16 @@ class AwsStorage():
         crypto_path = "%s.txt" % (splitext(file_abspath)[0])
 
         def return_data(file_key):
-            if not file_key or self._get_error(file_key) or self.is_expired(file_key) or 'Body' not in file_key:
+            if (
+                not file_key
+                or self._get_error(file_key)
+                or self.is_expired(file_key)
+                or "Body" not in file_key
+            ):
                 logger.warn("[STORAGE] s3 key not found at %s" % crypto_path)
                 callback(None)
             else:
-                callback(file_key['Body'])
+                callback(file_key["Body"])
 
         self.storage.get(crypto_path, callback=return_data)
 
@@ -175,16 +196,18 @@ class AwsStorage():
             return
 
         if not self.context.server.security_key:
-            raise RuntimeError("STORES_CRYPTO_KEY_FOR_EACH_IMAGE can't be True if no SECURITY_KEY specified")
+            raise RuntimeError(
+                "STORES_CRYPTO_KEY_FOR_EACH_IMAGE can't be True if no SECURITY_KEY specified"
+            )
 
         file_abspath = self._normalize_path(path)
-        crypto_path = '%s.txt' % splitext(file_abspath)[0]
+        crypto_path = "%s.txt" % splitext(file_abspath)[0]
 
         self.set(self.context.server.security_key, crypto_path)
 
         return crypto_path
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def get_detector_data(self, path, callback):
         """
         Retrieves detector data from storage
@@ -192,14 +215,19 @@ class AwsStorage():
         :param callable callback: Callback function for once the retrieval is done
         """
         file_abspath = self._normalize_path(path)
-        path = '%s.detectors.txt' % splitext(file_abspath)[0]
+        path = "%s.detectors.txt" % splitext(file_abspath)[0]
 
         def return_data(file_key):
-            if not file_key or self._get_error(file_key) or self.is_expired(file_key) or 'Body' not in file_key:
+            if (
+                not file_key
+                or self._get_error(file_key)
+                or self.is_expired(file_key)
+                or "Body" not in file_key
+            ):
                 logger.warn("[AwsStorage] s3 key not found at %s" % path)
                 callback(None)
             else:
-                callback(loads(file_key['Body'].read()))
+                callback(loads(file_key["Body"].read()))
 
         self.storage.get(path, callback=return_data)
 
@@ -213,7 +241,7 @@ class AwsStorage():
         """
         file_abspath = self._normalize_path(path)
 
-        path = '%s.detectors.txt' % splitext(file_abspath)[0]
+        path = "%s.detectors.txt" % splitext(file_abspath)[0]
 
         self.set(dumps(data), path)
 
@@ -226,8 +254,12 @@ class AwsStorage():
         :return: Error message if present, None otherwise
         :rtype: string
         """
-        if 'Error' in response:
-            return response['Error']['Message'] if 'Message' in response['Error'] else response['Error']
+        if "Error" in response:
+            return (
+                response["Error"]["Message"]
+                if "Message" in response["Error"]
+                else response["Error"]
+            )
 
         return None
 
@@ -237,7 +269,10 @@ class AwsStorage():
         :param dict response: AWS Response
         """
         if self._get_error(response):
-            logger.warn("[STORAGE] error occured while storing data: %s" % self._get_error(response))
+            logger.warn(
+                "[STORAGE] error occured while storing data: %s"
+                % self._get_error(response)
+            )
 
     def _get_config(self, config_key, default=None):
         """
@@ -246,7 +281,7 @@ class AwsStorage():
         :param default: Default value if not found
         :return: Resolved config value
         """
-        return getattr(self.context.config, '%s_%s' % (self.config_prefix, config_key))
+        return getattr(self.context.config, "%s_%s" % (self.config_prefix, config_key))
 
     def _normalize_path(self, path):
         """
@@ -255,14 +290,18 @@ class AwsStorage():
         :return: Adapted path
         :rtype: string
         """
-        path = path.lstrip('/')  # Remove leading '/'
+        path = path.lstrip("/")  # Remove leading '/'
         path_segments = [path]
 
-        root_path = self._get_config('ROOT_PATH')
-        if root_path and root_path is not '':
+        root_path = self._get_config("ROOT_PATH")
+        if root_path and root_path is not "":
             path_segments.insert(0, root_path)
 
         if self.is_auto_webp:
             path_segments.append("webp")
 
-        return join(path_segments[0], *path_segments[1:]).lstrip('/') if len(path_segments) > 1 else path_segments[0]
+        return (
+            join(path_segments[0], *path_segments[1:]).lstrip("/")
+            if len(path_segments) > 1
+            else path_segments[0]
+        )

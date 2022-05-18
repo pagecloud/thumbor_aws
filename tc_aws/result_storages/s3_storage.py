@@ -1,10 +1,10 @@
-#coding: utf-8
+# coding: utf-8
 
 # Copyright (c) 2015-2016, thumbor-community
 # Use of this source code is governed by the MIT license that can be
 # found in the LICENSE file.
 
-from tornado.concurrent import return_future
+from tornado.concurrent import run_on_executor
 from thumbor.result_storages import BaseStorage, ResultStorageResult
 
 from ..aws.storage import AwsStorage
@@ -16,16 +16,19 @@ class Storage(AwsStorage, BaseStorage):
     """
     S3 Result Storage
     """
+
     def __init__(self, context):
         """
         Constructor
         :param Context context: Thumbor's context
         """
         BaseStorage.__init__(self, context)
-        AwsStorage.__init__(self, context, 'TC_AWS_RESULT_STORAGE')
-        self.storage_expiration_seconds = context.config.get('RESULT_STORAGE_EXPIRATION_SECONDS', 3600)
+        AwsStorage.__init__(self, context, "TC_AWS_RESULT_STORAGE")
+        self.storage_expiration_seconds = context.config.get(
+            "RESULT_STORAGE_EXPIRATION_SECONDS", 3600
+        )
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def put(self, bytes, callback=None):
         """
         Stores image
@@ -36,12 +39,13 @@ class Storage(AwsStorage, BaseStorage):
         path = self._normalize_path(self.context.request.url)
 
         if callback is None:
+
             def callback(key):
                 self._handle_error(key)
 
         super(Storage, self).set(bytes, path, callback=callback)
 
-    @return_future
+    @run_on_executor(executor="_thread_pool")
     def get(self, path=None, callback=None):
         """
         Retrieves data
@@ -56,10 +60,10 @@ class Storage(AwsStorage, BaseStorage):
                 callback(None)
             else:
                 result = ResultStorageResult()
-                result.buffer     = key['Body'].read()
+                result.buffer = key["Body"].read()
                 result.successful = True
-                result.metadata   = key.copy()
-                result.metadata.pop('Body')
+                result.metadata = key.copy()
+                result.metadata.pop("Body")
 
                 logger.debug(str(result.metadata))
 

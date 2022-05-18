@@ -6,7 +6,7 @@
 
 from thumbor.utils import logger
 from thumbor.loaders import LoaderResult
-from tornado.concurrent import return_future
+from tornado.concurrent import run_on_executor
 
 import thumbor.loaders.http_loader as http_loader
 
@@ -14,7 +14,7 @@ from . import *
 from ..aws.bucket import Bucket
 
 
-@return_future
+@run_on_executor(executor="_thread_pool")
 def load(context, url, callback):
     """
     Loads image
@@ -23,44 +23,45 @@ def load(context, url, callback):
     :param callable callback: Callback method once done
     """
     if _use_http_loader(context, url):
-        http_loader.load_sync(context, url, callback, normalize_url_func=http_loader._normalize_url)
+        http_loader.load_sync(
+            context, url, callback, normalize_url_func=http_loader._normalize_url
+        )
         return
 
     bucket, key = _get_bucket_and_key(context, url)
 
     if not _validate_bucket(context, bucket):
-        result = LoaderResult(successful=False,
-                              error=LoaderResult.ERROR_NOT_FOUND)
+        result = LoaderResult(successful=False, error=LoaderResult.ERROR_NOT_FOUND)
         callback(result)
         return
 
-    bucket_loader = Bucket(bucket, context.config.get('TC_AWS_REGION'),
-                           context.config.get('TC_AWS_ENDPOINT'))
+    bucket_loader = Bucket(
+        bucket,
+        context.config.get("TC_AWS_REGION"),
+        context.config.get("TC_AWS_ENDPOINT"),
+    )
 
-    handle_data = HandleDataFunc.as_func(key,
-                                         callback=callback,
-                                         bucket_loader=bucket_loader,
-                                         context=context)
+    handle_data = HandleDataFunc.as_func(
+        key, callback=callback, bucket_loader=bucket_loader, context=context
+    )
 
     bucket_loader.get(key, callback=handle_data)
 
 
 class HandleDataFunc(object):
-
-    def __init__(self, key, callback=None,
-                 bucket_loader=None, context=None):
+    def __init__(self, key, callback=None, bucket_loader=None, context=None):
         self.key = key
         self.bucket_loader = bucket_loader
         self.callback = callback
         self.context = context
-        self.limit_max_retries = context.config.get('TC_AWS_MAX_RETRIES')
+        self.limit_max_retries = context.config.get("TC_AWS_MAX_RETRIES")
         self.max_retries_counter = 0
 
     @classmethod
     def as_func(cls, *init_args, **init_kwargs):
         """
-            Method to transform this class to a callback function
-            that will use for getObject from s3
+        Method to transform this class to a callback function
+        that will use for getObject from s3
         """
 
         def handle_data(file_key):
@@ -76,12 +77,14 @@ class HandleDataFunc(object):
         self.max_retries_counter = self.max_retries_counter + 1
 
     def dispatch(self, file_key):
-        """ Callback method for getObject from s3 """
-        if not file_key or 'Error' in file_key or 'Body' not in file_key:
+        """Callback method for getObject from s3"""
+        if not file_key or "Error" in file_key or "Body" not in file_key:
 
             logger.error(
-                "ERROR retrieving image from S3 {0}: {1}".
-                format(self.key, str(file_key)))
+                "ERROR retrieving image from S3 {0}: {1}".format(
+                    self.key, str(file_key)
+                )
+            )
 
             # If we got here, there was a failure.
             # We will return 404 if S3 returned a 404, otherwise 502.
@@ -93,8 +96,8 @@ class HandleDataFunc(object):
                 self.callback(result)
                 return
 
-            response_metadata = file_key.get('ResponseMetadata', {})
-            status_code = response_metadata.get('HTTPStatusCode')
+            response_metadata = file_key.get("ResponseMetadata", {})
+            status_code = response_metadata.get("HTTPStatusCode")
 
             if status_code == 404:
                 result.error = LoaderResult.ERROR_NOT_FOUND
@@ -103,10 +106,9 @@ class HandleDataFunc(object):
 
             if self.max_retries_counter < self.limit_max_retries:
                 self.__increment_retry_counter()
-                self.bucket_loader.get(self.key,
-                                       callback=self.dispatch)
+                self.bucket_loader.get(self.key, callback=self.dispatch)
             else:
                 result.error = LoaderResult.ERROR_UPSTREAM
                 self.callback(result)
         else:
-            self.callback(file_key['Body'].read())
+            self.callback(file_key["Body"].read())
