@@ -43,3 +43,6 @@ def monkeypatch_tornado_return_future():
 
     if not hasattr(tornado.concurrent, "return_future"):
         setattr(tornado.concurrent, "return_future", noop)
+
+
+monkeypatch_tornado_return_future()
