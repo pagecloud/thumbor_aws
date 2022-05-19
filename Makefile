@@ -8,16 +8,23 @@ reinstall:
 	pip install . --quiet
 
 setup:
-	@pip install -e .[tests] --quiet
+	pip install -e .[tests]
 
 setup_docs:
-	@pip install -r docs/requirements.txt
+	pip install -r docs/requirements.txt
+
+setup_publish:
+	pip install -r publish_requirements.txt
 
 build_docs:
-	@cd docs && make html
+	cd docs && make html
 
 docs: setup_docs build_docs
 	python -mwebbrowser file:///`pwd`/docs/_build/html/index.html
 
 test: setup
-	@pyvows -c -l tc_aws
+	pytest
+
+publish: setup_publish
+	python setup.py sdist
+	twine upload dist/*
