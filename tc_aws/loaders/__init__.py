@@ -27,9 +27,8 @@ def _get_bucket_and_key(context, url):
         key = url[first_slash_index + 1:]
     else:
         bucket = context.config.get('TC_AWS_LOADER_BUCKET')
-        key = url
 
-    key = _get_key(key, context)
+    key = _get_key(url, context)
 
     return bucket, key
 
