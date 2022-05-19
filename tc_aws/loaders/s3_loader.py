@@ -25,15 +25,14 @@ async def load(context, url):
     bucket, key = _get_bucket_and_key(context, url)
 
     if not _validate_bucket(context, bucket):
-        result = LoaderResult(successful=False,
-                              error=LoaderResult.ERROR_NOT_FOUND)
+        result = LoaderResult(successful=False, error=LoaderResult.ERROR_NOT_FOUND)
         return result
 
     loader = Bucket(
         bucket,
-        context.config.get('TC_AWS_REGION'),
-        context.config.get('TC_AWS_ENDPOINT'),
-        context.config.get('TC_AWS_MAX_RETRY')
+        context.config.get("TC_AWS_REGION"),
+        context.config.get("TC_AWS_ENDPOINT"),
+        context.config.get("TC_AWS_MAX_RETRY"),
     )
 
     result = LoaderResult()
@@ -41,9 +40,7 @@ async def load(context, url):
     try:
         file_key = await loader.get(key)
     except ClientError as err:
-        logger.error(
-            "ERROR retrieving image from S3 {0}: {1}".
-                format(key, str(err.response)))
+        logger.error("ERROR retrieving image from S3 {0}: {1}".format(key, str(err.response)))
 
         # If we got here, there was a failure.
         # We will return 404 if S3 returned a 404, otherwise 502.
@@ -53,7 +50,7 @@ async def load(context, url):
             result.error = LoaderResult.ERROR_UPSTREAM
             return result
 
-        status_code = err.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+        status_code = err.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
 
         if status_code == 404:
             result.error = LoaderResult.ERROR_NOT_FOUND
@@ -63,12 +60,12 @@ async def load(context, url):
         return result
 
     result.successful = True
-    async with file_key['Body'] as stream:
+    async with file_key["Body"] as stream:
         result.buffer = await stream.read()
 
     result.metadata.update(
-        size=file_key['ContentLength'],
-        updated_at=file_key['LastModified'],
+        size=file_key["ContentLength"],
+        updated_at=file_key["LastModified"],
     )
 
     return result
@@ -82,14 +79,19 @@ def _get_bucket_and_key(context, url):
     :return: A tuple with the bucket and the key detected
     :rtype: tuple
     """
-    url = unquote(url)
+    url = unquote(url).lstrip("/")
 
-    bucket = context.config.get('TC_AWS_LOADER_BUCKET')
-    if not bucket:
-        bucket = _get_bucket(url)
-        url = '/'.join(url.lstrip('/').split('/')[1:])
+    bucket = _get_bucket(url)
+    # if not a valid bucket, use default bucket
+    if _validate_bucket(context, bucket):
+        first_slash_index = url.find("/")
+        bucket = url[:first_slash_index]
+        key = url[first_slash_index + 1 :]
+    else:
+        bucket = context.config.get("TC_AWS_LOADER_BUCKET")
+        key = url
 
-    key = _get_key(url, context)
+    key = _get_key(key, context)
 
     return bucket, key
 
@@ -101,9 +103,8 @@ def _get_bucket(url):
     :return: bucket name
     :rtype: string
     """
-    url_by_piece = url.lstrip("/").split("/")
-
-    return url_by_piece[0]
+    first_slash_index = url.find("/")
+    return url[:first_slash_index]
 
 
 def _get_key(path, context):
@@ -114,8 +115,8 @@ def _get_key(path, context):
     :return: Extracted key
     :rtype: string
     """
-    root_path = context.config.get('TC_AWS_LOADER_ROOT_PATH')
-    return '/'.join([root_path, path]) if root_path is not '' else path
+    root_path = context.config.get("TC_AWS_LOADER_ROOT_PATH")
+    return "/".join([root_path, path]) if root_path is not "" else path
 
 
 def _validate_bucket(context, bucket):
@@ -126,8 +127,8 @@ def _validate_bucket(context, bucket):
     :return: Whether bucket is allowed or not
     :rtype: bool
     """
-    allowed_buckets = context.config.get('TC_AWS_ALLOWED_BUCKETS', default=None)
-    return not allowed_buckets or bucket in allowed_buckets
+    allowed_buckets = context.config.get("TC_AWS_ALLOWED_BUCKETS", default=None)
+    return bucket in allowed_buckets
 
 
 def _use_http_loader(context, url):
@@ -138,5 +139,5 @@ def _use_http_loader(context, url):
     :return: Whether we should use HTTP Loader or not
     :rtype: bool
     """
-    enable_http_loader = context.config.get('TC_AWS_ENABLE_HTTP_LOADER', default=False)
-    return enable_http_loader and url.startswith('http')
+    enable_http_loader = context.config.get("TC_AWS_ENABLE_HTTP_LOADER", default=False)
+    return enable_http_loader and url.startswith("http")
