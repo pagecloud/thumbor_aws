@@ -16,11 +16,12 @@ def _get_bucket_and_key(context, url):
     :return: A tuple with the bucket and the key detected
     :rtype: tuple
     """
-    url = urllib2.unquote(url).lstrip('/')
+    url = urllib2.unquote(url)
 
-    bucket = _get_bucket(url)
-    if not _validate_bucket(context, bucket):
-        bucket = context.config.get('TC_AWS_LOADER_BUCKET')
+    bucket = context.config.get('TC_AWS_LOADER_BUCKET')
+    if not bucket:
+        bucket = _get_bucket(url)
+        url = '/'.join(url.lstrip('/').split('/')[1:])
 
     key = _get_key(url, context)
 
@@ -33,9 +34,9 @@ def _get_bucket(url):
     :return: bucket name
     :rtype: string
     """
-    first_slash_index = url.find('/')
+    url_by_piece = url.lstrip("/").split("/")
 
-    return url[:first_slash_index]
+    return url_by_piece[0]
 
 def _get_key(path, context):
     """
@@ -57,7 +58,7 @@ def _validate_bucket(context, bucket):
     :rtype: bool
     """
     allowed_buckets = context.config.get('TC_AWS_ALLOWED_BUCKETS', default=None)
-    return bucket in allowed_buckets
+    return not allowed_buckets or bucket in allowed_buckets
 
 def _use_http_loader(context, url):
     """
